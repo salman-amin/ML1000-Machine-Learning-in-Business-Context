@@ -1,0 +1,366 @@
+---
+title: "Supervied Learning Assignment"
+author: "Mark Lewis, Daniyal Shamim, Juan Calvillo, Salman Amin"
+date: "February 17, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown of a walkthrough for out assignment
+The data set we used was taken from UCI machine learning repository
+Which can be found here
+https://archive.ics.uci.edu/ml/datasets/Census+Income
+A link to the RShint app can be found here
+https://markglewis.shinyapps.io/IncomePrediction/
+To begin install the following packages
+
+
+```{r cars}
+#import packages;
+library(dplyr)
+library(reshape2)
+library(ggplot2)
+library(Hmisc)
+library(corrplot)
+library(mice)
+library(VIM)
+library(pROC)
+library(caret)
+library(sqldf)
+library(rpart)
+library(e1071)
+library(C50)
+```
+
+Import the data set
+Give Collumns names for readability
+
+```{r pressure, echo=FALSE}
+getwd();
+data <- read.table("data.txt", sep =",", header = FALSE, dec =".")
+
+
+#check distribution of target variable
+
+colnames(data)[colnames(data)=="V1"] <- "age"
+colnames(data)[colnames(data)=="V2"] <- "workclass"
+colnames(data)[colnames(data)=="V3"] <- "fnlwgt"
+colnames(data)[colnames(data)=="V4"] <- "education"
+colnames(data)[colnames(data)=="V5"] <- "education-num"
+colnames(data)[colnames(data)=="V6"] <- "marStat"
+colnames(data)[colnames(data)=="V7"] <- "occupation"
+colnames(data)[colnames(data)=="V8"] <- "relationship"
+colnames(data)[colnames(data)=="V9"] <- "race"
+colnames(data)[colnames(data)=="V10"] <- "sex"
+colnames(data)[colnames(data)=="V11"] <- "capital-gain"
+colnames(data)[colnames(data)=="V12"] <- "capital-loss"
+colnames(data)[colnames(data)=="V13"] <- "hrs-per-week"
+colnames(data)[colnames(data)=="V14"] <- "native-country"
+colnames(data)[colnames(data)=="V15"] <- "income"
+data$ID <- seq.int(nrow(data))
+
+str(data)
+summary(data)
+
+```
+search for missing data
+```{r pressure, echo=FALSE}
+is.na(data) = data=='?'
+is.na(data) = data==' ?'
+#? is used to denote missing data in this data set
+sum(is.na(data))
+mean(is.na(data))
+
+```
+erase those rows we dont need those
+```{r pressure, echo=FALSE}
+data = na.omit(data)
+
+```
+lets see if there are any outliers in the data set
+```{r pressure, echo=FALSE}
+boxplot(data, horizontal = T)
+boxplot(data$`capital-gain`, horizontal = T)
+boxplot(data$`capital-loss`, horizontal = T)
+
+```
+
+as shown the data with the most outliers and inconsistency are:
+fnlwgt
+data$'capital-gain
+data$'capital-loss
+data$'native-country
+
+Let's do some data exploration
+```{r pressure, echo=FALSE}
+attach(data)
+
+freq_tbl=table(workclass)
+head(freq_tbl)
+barplot(freq_tbl)
+pie(freq_tbl)
+ggplot(data) + aes(x=data$workclass, group=income, fill=income) + 
+  geom_bar(color='black')  + 
+  scale_colour_discrete(drop = FALSE)
+
+```
+
+As shown here the vast majority of people in this set are low in income and work for private companies
+This would lead me to believe that this data is heavily biased
+
+```{r pressure, echo=FALSE}
+attach(data)
+
+freq_tbl=table(education)
+head(freq_tbl)
+barplot(freq_tbl)
+pie(freq_tbl)
+ggplot(data) + aes(x=data$education, group=income, fill=income) + 
+  geom_bar(color='black')  + 
+  scale_colour_discrete(drop = FALSE)
+
+```
+
+Data shows a pretty even spread. When it comes to education.
+Maybe the economy is down.
+
+```{r pressure, echo=FALSE}
+attach(data)
+
+freq_tbl=table(marStat)
+head(freq_tbl)
+barplot(freq_tbl)
+pie(freq_tbl)
+ggplot(data) + aes(x=data$marStat, group=income, fill=income) + 
+  geom_bar(color='black')  + 
+  scale_colour_discrete(drop = FALSE)
+
+```
+Doesn't seem appropriately representative
+```{r pressure, echo=FALSE}
+freq_tbl=table(occupation)
+head(freq_tbl)
+barplot(freq_tbl)
+pie(freq_tbl)
+ggplot(data) + aes(x=data$occupation, group=income, fill=income) + 
+  geom_bar(color='black')  + 
+  scale_colour_discrete(drop = FALSE)
+
+```
+
+An even spread of different occupations available
+
+```{r pressure, echo=FALSE}
+freq_tbl=table(relationship)
+head(freq_tbl)
+barplot(freq_tbl)
+pie(freq_tbl)
+ggplot(data) + aes(x=data$relationship, group=income, fill=income) + 
+  geom_bar(color='black')  + 
+  scale_colour_discrete(drop = FALSE)
+
+```
+There are more husbands than wives in this set.
+that's not a good sign.
+
+```{r pressure, echo=FALSE}
+freq_tbl=table(race)
+head(freq_tbl)
+barplot(freq_tbl)
+pie(freq_tbl)
+ggplot(data) + aes(x=data$race, group=income, fill=income) + 
+  geom_bar(color='black')  + 
+  scale_colour_discrete(drop = FALSE)
+
+```
+
+The data clearly has a massive bias at this point
+
+```{r pressure, echo=FALSE}
+freq_tbl=table(sex)
+head(freq_tbl)
+barplot(freq_tbl)
+pie(freq_tbl)
+ggplot(data) + aes(x=data$sex, group=income, fill=income) + 
+  geom_bar(color='black')  + 
+  scale_colour_discrete(drop = FALSE)
+
+```
+```{r pressure, echo=FALSE}
+freq_tbl=table(data$`natice-country`)
+head(freq_tbl)
+ggplot(data) + aes(x=data$`native-country`, group=income, fill=income) + 
+  geom_bar(color='black')  + 
+  scale_colour_discrete(drop = FALSE)
+```
+Data was mostly taken from one country
+
+Lets look at all the data side by side
+```{r pressure, echo=FALSE}
+list_of_numcols = sapply(data, is.numeric)
+numcols = data[ , list_of_numcols]
+melt_data = melt(numcols, id.vars=c("ID"))
+ggplot(data = melt_data, mapping = aes(x = value)) + geom_histogram(bins = 10) + facet_wrap(~variable, scales = 'free_x')
+```
+Seems like the only unbiased variable was age
+```{r pressure, echo=FALSE}
+ggplot(data) + aes(x=as.numeric(data$age), group=income, fill=income) + 
+  geom_histogram(binwidth=1, color='black')
+ggplot(data, aes(x=data$age, y=data$income)) + 
+  geom_point()
+ggplot(data) + aes(x=as.numeric(data$`education-num`), group=income, fill=income) + 
+  geom_histogram(binwidth=1, color='black')
+ggplot(data, aes(x=data$`education-num`, y=data$income)) + 
+  geom_point()
+ggplot(data) + aes(x=as.numeric(data$`capital-gain`), group=income, fill=income) + 
+  geom_histogram(binwidth=1, color='black')
+ggplot(data, aes(x=data$`capital-gain`, y=data$income)) + 
+  geom_point()
+ggplot(data) + aes(x=as.numeric(data$`capital-loss`), group=income, fill=income) + 
+  geom_histogram(binwidth=1, color='black')
+ggplot(data, aes(x=data$`capital-loss`, y=data$income)) + 
+  geom_point()
+ggplot(data) + aes(x=as.numeric(data$`hrs-per-week`), group=income, fill=income) + 
+  geom_histogram(binwidth=1, color='black')
+ggplot(data, aes(x=data$`hrs-per-week`, y=data$income)) + 
+  geom_point()
+```
+In all likeliness you are most likely to be valued less than 50K
+
+Lets build models for this data set anyway and see which one is the best fit
+```{r pressure, echo=FALSE}
+#################################################################################
+ ##########################  Feature Engineering   #############################
+#################################################################################
+data <- read.table("data.txt", sep =",", header = FALSE, dec =".")
+
+colnames(data)[colnames(data)=="V1"] <- "age"
+colnames(data)[colnames(data)=="V2"] <- "workclass"
+colnames(data)[colnames(data)=="V3"] <- "fnlwgt"
+colnames(data)[colnames(data)=="V4"] <- "education"
+colnames(data)[colnames(data)=="V5"] <- "education-num"
+colnames(data)[colnames(data)=="V6"] <- "marStat"
+colnames(data)[colnames(data)=="V7"] <- "occupation"
+colnames(data)[colnames(data)=="V8"] <- "relationship"
+colnames(data)[colnames(data)=="V9"] <- "race"
+colnames(data)[colnames(data)=="V10"] <- "sex"
+colnames(data)[colnames(data)=="V11"] <- "capital-gain"
+colnames(data)[colnames(data)=="V12"] <- "capital-loss"
+colnames(data)[colnames(data)=="V13"] <- "hrs-per-week"
+colnames(data)[colnames(data)=="V14"] <- "native-country"
+colnames(data)[colnames(data)=="V15"] <- "income"
+
+
+#search for missing data
+is.na(data) = data=='?'
+is.na(data) = data==' ?'
+sum(is.na(data))
+mean(is.na(data))
+#erase those rows
+data = na.omit(data)
+#need to determine the order of this
+#anyDuplicated(data)
+#data <- distinct(data)
+#we decided not to remove duplicate data
+
+data$fnlwgt <- NULL
+data$'capital-gain' <- NULL
+data$'capital-loss' <- NULL
+data$'native-country' <- NULL
+```
+
+Lets redo importing the data set
+We are removing the variables with the biggest outliers that have no correlation with any factors
+We will keep duplicates
+and remove any rows with missing data
+All of the models we are using are supervised learning methods and are using k fold cross validation
+
+For our first model lets use logic regression
+```{r pressure, echo=FALSE}
+#logic regression
+
+the_data <- data.frame(data)
+train_control<- trainControl(method="cv", number=10, verboseIter = TRUE)
+lgreg<- train(income~., the_data, method="LMT", trControl=train_control)
+predictions<- predict(lgreg,the_data)
+the_data<- cbind(the_data,predictions)
+table(the_data$predictions,the_data$income)
+
+```
+It's accuracy is 83% as the results show
+
+Now lets try the C5 model
+```{r pressure, echo=FALSE}
+#logic regression
+
+the_data <- data.frame(data)
+train_control<- trainControl(method="cv", number=10, verboseIter = TRUE)
+c5<- train(income~., the_data, method="C5.0", trControl=train_control)
+predictions<- predict(c5,the_data)
+the_data<- cbind(the_data,predictions)
+table(the_data$predictions,the_data$income)
+
+```
+It's accuracy comes out to 84%
+
+Now lets try the logitBoost model
+```{r pressure, echo=FALSE}
+#logic regression
+
+the_data <- data.frame(data)
+train_control<- trainControl(method="cv", number=10, verboseIter = TRUE)
+logmodel<- train(income~., the_data, method="LogitBoost", trControl=train_control)
+predictions<- predict(logmodel,the_data)
+the_data<- cbind(the_data,predictions)
+table(the_data$predictions,the_data$income)
+
+```
+It's accuracy comes out to 81%
+
+Now lets try a svm model
+```{r pressure, echo=FALSE}
+#svm model
+
+the_data <- data.frame(data)
+train_control<- trainControl(method="cv", number=10, verboseIter = TRUE)
+svmModel<- train(income~., the_data, method="svmLinearWeights2", trControl=train_control)
+predictions<- predict(svmModel,the_data)
+the_data<- cbind(the_data,predictions)
+table(the_data$predictions,the_data$income)
+```
+It's accuracy comes out to 83%
+
+Now lets try Naive Bayes model
+```{r pressure, echo=FALSE}
+the_data <- data.frame(data)
+train_control<- trainControl(method="cv", number=10, verboseIter = TRUE)
+nbm<- train(income~., the_data, method="naive_bayes", trControl=train_control)
+predictions<- predict(nbm,the_data)
+the_data<- cbind(the_data,predictions)
+table(the_data$predictions,the_data$income)
+```
+It's accuracy comes out to only 75%
+
+And for our last model lets do a neural net
+```{r pressure, echo=FALSE}
+the_data <- data.frame(data)
+train_control<- trainControl(method="cv", number=10, verboseIter = TRUE)
+nnet<- train(income~., the_data, method="nnet", trControl=train_control)
+predictions<- predict(nnet,the_data)
+the_data<- cbind(the_data,predictions)
+table(the_data$predictions,the_data$income)
+
+```
+it's accuracy comes to 83%
+
+With all those models the best one was the C5 model
+by only a slim margin
+I tested it 
+it's most likely going to predict that your incopme is valued less than 50,000$
+but that's likely because of the biased data that it was trained with you can find 
+the shiny app here. where you can test to see if you meet its requirements to have an income above 50,000$

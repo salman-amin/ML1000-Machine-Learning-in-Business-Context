@@ -1,0 +1,12 @@
+name: IncomePrediction
+title: IncomePrediction
+username:
+account: markglewis
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 722712
+bundleId: 1881451
+url: https://markglewis.shinyapps.io/IncomePrediction/
+when: 1550453689.62772
+asMultiple: FALSE
+asStatic: FALSE
